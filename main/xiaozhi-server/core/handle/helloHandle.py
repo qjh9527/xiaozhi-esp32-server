@@ -4,10 +4,14 @@ import json
 import random
 import shutil
 import asyncio
-from core.handle.mcpHandle import MCPClient, send_mcp_initialize_message, send_mcp_tools_list_request
 from core.handle.sendAudioHandle import send_stt_message
 from core.utils.util import remove_punctuation_and_length
 from core.providers.tts.dto.dto import ContentType, InterfaceType
+from core.handle.mcpHandle import (
+    MCPClient,
+    send_mcp_initialize_message,
+    send_mcp_tools_list_request,
+)
 
 
 TAG = __name__
@@ -70,6 +74,8 @@ async def checkWakeupWords(conn, text):
         text_hello = WAKEUP_CONFIG["text"]
         if not text_hello:
             text_hello = text
+        if conn.tts is None:
+            return False
         conn.tts.tts_one_sentence(
             conn, ContentType.FILE, content_file=file, content_detail=text_hello
         )

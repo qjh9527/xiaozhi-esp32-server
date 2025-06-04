@@ -478,6 +478,8 @@ class ConnectionHandler:
             self.memory = modules["memory"]
 
     def _initialize_memory(self):
+        if self.memory is None:
+            return
         """初始化记忆模块"""
         self.memory.init_memory(
             role_id=self.device_id,
@@ -518,6 +520,8 @@ class ConnectionHandler:
                 self.logger.bind(tag=TAG).info("使用主LLM作为意图识别模型")
 
     def _initialize_intent(self):
+        if self.intent is None:
+            return
         self.intent_type = self.config["Intent"][
             self.config["selected_module"]["Intent"]
         ]["type"]
@@ -708,15 +712,24 @@ class ConnectionHandler:
                 # 处理Server端MCP工具调用
                 if self.mcp_manager.is_mcp_tool(function_name):
                     result = self._handle_mcp_tool_call(function_call_data)
-                elif hasattr(self, "mcp_client") and self.mcp_client.has_tool(function_name):
-                    # 如果是小智端MCP工具调用 
+                elif hasattr(self, "mcp_client") and self.mcp_client.has_tool(
+                    function_name
+                ):
+                    # 如果是小智端MCP工具调用
                     self.logger.bind(tag=TAG).debug(
                         f"调用小智端MCP工具: {function_name}, 参数: {function_arguments}"
                     )
                     try:
-                        result = asyncio.run_coroutine_threadsafe(call_mcp_tool(self, self.mcp_client, function_name, function_arguments), self.loop).result()
+                        result = asyncio.run_coroutine_threadsafe(
+                            call_mcp_tool(
+                                self, self.mcp_client, function_name, function_arguments
+                            ),
+                            self.loop,
+                        ).result()
                         self.logger.bind(tag=TAG).debug(f"MCP工具调用结果: {result}")
-                        result = ActionResponse(action=Action.REQLLM, result=result, response="")
+                        result = ActionResponse(
+                            action=Action.REQLLM, result=result, response=""
+                        )
                     except Exception as e:
                         self.logger.bind(tag=TAG).error(f"MCP工具调用失败: {e}")
                         result = ActionResponse(
