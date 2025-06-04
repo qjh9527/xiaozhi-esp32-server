@@ -12,9 +12,13 @@ import asyncio
 TAG = __name__
 
 
-async def handleTextMessage(conn, message):
+async def handleTextMessage(conn, message: str):
     """处理文本消息"""
     try:
+        conn.logger.bind(tag=TAG).warning(f"message：{message}")
+        if message in ["{}"]:
+            return
+
         msg_json = json.loads(message)
         if isinstance(msg_json, int):
             conn.logger.bind(tag=TAG).info(f"收到文本消息：{message}")
