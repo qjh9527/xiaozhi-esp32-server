@@ -136,7 +136,6 @@ class WebSocketServer:
             async with self.config_lock:
                 # 0. 重新获取配置
                 voice_config = atis_config.get("voice_config")
-                theme = atis_config.get("theme")
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 ASDLLM = "ASDLLM"
 
@@ -147,20 +146,22 @@ class WebSocketServer:
                 else:
                     select_llm_module = self.config["selected_module"]["LLM"]
 
-                # 1.2 更新提示词
-                gender = voice_config.get("gender", VoiceGender.girl).lower()
-                claiming = "姐姐" if gender == VoiceGender.girl else "哥哥"
-                prompt = ASD_prompt if select_llm_module == ASDLLM else self.config["prompt"]
-                conn.change_system_prompt(prompt.format(claiming, theme))
+                # 1.2 更新提示词 和 llm 模型
+                theme = atis_config.get("theme")
+                if theme is not None:
+                    gender = voice_config.get("gender", VoiceGender.girl.value).lower()
+                    claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"
+                    prompt = ASD_prompt if select_llm_module == ASDLLM else self.config["prompt"]
+                    conn.change_system_prompt(prompt.format(claiming, theme))
 
-                # 2. 重新初始化组件
-                if select_llm_module != self.config["selected_module"]["LLM"]:
-                    llm_type = self.config["LLM"][select_llm_module]["type"]
-                    conn._llm = llm_create.create_instance(
-                        llm_type,
-                        self.config["LLM"][select_llm_module],
-                    )
-                    self.logger.bind(tag=TAG).info(f"初始化组件: llm成功 {select_llm_module}")
+                    # 重新初始化组件
+                    if select_llm_module != self.config["selected_module"]["LLM"]:
+                        llm_type = self.config["LLM"][select_llm_module]["type"]
+                        conn._llm = llm_create.create_instance(
+                            llm_type,
+                            self.config["LLM"][select_llm_module],
+                        )
+                        self.logger.bind(tag=TAG).info(f"初始化组件: llm成功 {select_llm_module}")
 
                 conn.tts.update_config(voice_config)
 
