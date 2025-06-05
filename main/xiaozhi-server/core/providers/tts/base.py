@@ -19,6 +19,7 @@ from core.providers.tts.dto.dto import (
     SentenceType,
     ContentType,
     InterfaceType,
+    VoiceGender,
 )
 
 import traceback
@@ -395,3 +396,10 @@ class TTSProviderBase(ABC):
                 self.processed_chars += len(full_text)
                 return True
         return False
+
+    def update_config(self, voice_config: dict):
+        """更新 tts 配置信息
+        1. 语速
+        2. 声音名称、角色
+        """
+        pass
