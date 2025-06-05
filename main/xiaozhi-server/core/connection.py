@@ -581,11 +581,11 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, tool_call=False):
+    def chat(self, query=None, tool_call=False):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
 
-        if not tool_call:
+        if not tool_call and query is not None:
             self.dialogue.put(Message(role="user", content=query))
 
         # Define intent functions
@@ -603,7 +603,7 @@ class ConnectionHandler:
         try:
             # 使用带记忆的对话
             memory_str = None
-            if self.memory is not None:
+            if self.memory is not None and query is not None:
                 future = asyncio.run_coroutine_threadsafe(
                     self.memory.query_memory(query), self.loop
                 )
