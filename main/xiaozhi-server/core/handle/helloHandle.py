@@ -51,12 +51,17 @@ async def handleHelloMessage(conn, msg_json):
         # 处理 atis 对话配置
         atis = features.get("atis")
         if atis:
-            # data：rate voice_gender
+            msg_type = atis.get("type")
             await update_config(conn, atis)
+
+            if msg_type == "chat":
+                conn.executor.submit(conn.chat)
+            elif msg_type == "tts":
+                conn.client_abort = False
+                conn.tts.tts_one_sentence(conn, ContentType.TEXT, content_detail=atis.get("text"))
 
     await conn.websocket.send(json.dumps(conn.welcome_msg))
 
-    conn.executor.submit(conn.chat)
 
 async def update_config(conn, atis_config):
     _type = "atis"
