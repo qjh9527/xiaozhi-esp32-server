@@ -5,6 +5,7 @@ from typing import Optional, Tuple, List
 import wave
 
 import requests
+from core.providers.asr.dto.dto import InterfaceType
 from core.providers.asr.base import ASRProviderBase
 from config.logger import setup_logging
 
@@ -15,6 +16,7 @@ logger = setup_logging()
 class ASRProvider(ASRProviderBase):
     def __init__(self, config: dict, delete_audio_file: bool = True):
         super().__init__()
+        self.interface_type = InterfaceType.NON_STREAM
         self.subscription = config.get("subscription")
         self.region = config.get("region", "eastasia")
         self.language = config.get("language", "zh-CN")
