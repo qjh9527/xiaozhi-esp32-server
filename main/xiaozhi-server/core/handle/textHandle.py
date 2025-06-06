@@ -1,6 +1,8 @@
 import json
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.helloHandle import handleHelloMessage
+from core.handle.atisHandle import handleAtisMessage
+from core.handle.utilsHandle import update_config
 from core.providers.tools.device_mcp import handle_mcp_message
 from core.utils.util import remove_punctuation_and_length, filter_sensitive_info
 from core.handle.receiveAudioHandle import startToChat, handleAudioMessage
@@ -111,61 +113,16 @@ async def handleTextMessage(conn, message: str):
                 return
             # 动态更新配置
             if msg_json["action"] == "update_config":
-                try:
-                    # 更新WebSocketServer的配置
-                    if not conn.server:
-                        await conn.websocket.send(
-                            json.dumps(
-                                {
-                                    "type": "server",
-                                    "status": "error",
-                                    "message": "无法获取服务器实例",
-                                    "content": {"action": "update_config"},
-                                }
-                            )
-                        )
-                        return
-
-                    if not await conn.server.update_config():
-                        await conn.websocket.send(
-                            json.dumps(
-                                {
-                                    "type": "server",
-                                    "status": "error",
-                                    "message": "更新服务器配置失败",
-                                    "content": {"action": "update_config"},
-                                }
-                            )
-                        )
-                        return
-
-                    # 发送成功响应
-                    await conn.websocket.send(
-                        json.dumps(
-                            {
-                                "type": "server",
-                                "status": "success",
-                                "message": "配置更新成功",
-                                "content": {"action": "update_config"},
-                            }
-                        )
-                    )
-                except Exception as e:
-                    conn.logger.bind(tag=TAG).error(f"更新配置失败: {str(e)}")
-                    await conn.websocket.send(
-                        json.dumps(
-                            {
-                                "type": "server",
-                                "status": "error",
-                                "message": f"更新配置失败: {str(e)}",
-                                "content": {"action": "update_config"},
-                            }
-                        )
-                    )
+                await update_config(conn, msg_json["type"])
             # 重启服务器
             elif msg_json["action"] == "restart":
                 await conn.handle_restart(msg_json)
+        elif msg_json["type"] == "atis":
+            conn.logger.bind(tag=TAG).info(f"收到atis消息：{message}")
+            await handleAtisMessage(conn, msg_json)
         else:
             conn.logger.bind(tag=TAG).error(f"收到未知类型消息：{message}")
     except json.JSONDecodeError:
         await conn.websocket.send(message)
+
+
