@@ -314,7 +314,12 @@ class TTSProviderBase(ABC):
             if (pos != -1 and last_punct_pos == -1) or (
                 pos != -1 and pos < last_punct_pos
             ):
-                last_punct_pos = pos
+                if pos < len(current_text) - 1:
+                    # 符号后有数字时，不分割语句
+                    if not current_text[pos+1].isdigit():
+                        last_punct_pos = pos
+                else:
+                    last_punct_pos = pos
 
         if last_punct_pos != -1:
             segment_text_raw = current_text[: last_punct_pos + 1]
