@@ -4,7 +4,6 @@ import json
 import random
 import shutil
 import asyncio
-
 from core.handle.sendAudioHandle import send_stt_message
 from core.utils.util import remove_punctuation_and_length
 from core.providers.tts.dto.dto import ContentType, InterfaceType
@@ -47,74 +46,7 @@ async def handleHelloMessage(conn, msg_json):
             # 发送mcp消息，获取tools列表
             asyncio.create_task(send_mcp_tools_list_request(conn))
 
-        # 处理 atis 对话配置
-        atis = features.get("atis")
-        if atis:
-            msg_type = atis.get("type")
-            await update_config(conn, atis)
-
-            if msg_type == "chat":
-                conn.executor.submit(conn.chat)
-            elif msg_type == "tts":
-                conn.client_abort = False
-                conn.tts.tts_one_sentence(conn, ContentType.TEXT, content_detail=atis.get("text"))
-
     await conn.websocket.send(json.dumps(conn.welcome_msg))
-
-
-async def update_config(conn, atis_config):
-    _type = "atis"
-    try:
-        # 更新WebSocketServer的配置
-        if not conn.server:
-            await conn.websocket.send(
-                json.dumps(
-                    {
-                        "type": _type,
-                        "status": "error",
-                        "message": "无法获取服务器实例",
-                        "content": {"action": "update_config"},
-                    }
-                )
-            )
-            return
-
-        if not await conn.server.update_config_from_client(conn, atis_config):
-            await conn.websocket.send(
-                json.dumps(
-                    {
-                        "type": _type,
-                        "status": "error",
-                        "message": "更新服务器配置失败",
-                        "content": {"action": "update_config"},
-                    }
-                )
-            )
-            return
-
-        # 发送成功响应
-        await conn.websocket.send(
-            json.dumps(
-                {
-                    "type": _type,
-                    "status": "success",
-                    "message": "配置更新成功",
-                    "content": {"action": "update_config"},
-                }
-            )
-        )
-    except Exception as e:
-        conn.logger.bind(tag=TAG).error(f"更新配置失败: {str(e)}")
-        await conn.websocket.send(
-            json.dumps(
-                {
-                    "type": _type,
-                    "status": "error",
-                    "message": f"更新配置失败: {str(e)}",
-                    "content": {"action": "update_config"},
-                }
-            )
-        )
 
 
 async def checkWakeupWords(conn, text):
