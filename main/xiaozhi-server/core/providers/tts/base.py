@@ -324,8 +324,8 @@ class TTSProviderBase(ABC):
         if last_punct_pos != -1:
             segment_text_raw = current_text[: last_punct_pos + 1]
             segment_text = textUtils.get_string_no_punctuation_or_emoji(
-                segment_text_raw
-            )
+                segment_text_raw,
+                self.conn.config.get("atis").get("is_keep_end_punctuation", True))
             self.processed_chars += len(segment_text_raw)  # 更新已处理字符位置
 
             # 如果是第一句话，在找到第一个逗号后，将标志设置为False
@@ -384,7 +384,9 @@ class TTSProviderBase(ABC):
         full_text = "".join(self.tts_text_buff)
         remaining_text = full_text[self.processed_chars :]
         if remaining_text:
-            segment_text = textUtils.get_string_no_punctuation_or_emoji(remaining_text)
+            segment_text = textUtils.get_string_no_punctuation_or_emoji(
+                remaining_text,
+                self.conn.config.get("atis").get("is_keep_end_punctuation", True))
             if segment_text:
                 if self.delete_audio_file:
                     audio_datas = self.to_tts(segment_text)
