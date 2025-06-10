@@ -151,7 +151,7 @@ class WebSocketServer:
                 if theme is not None:
                     gender = voice_config.get("gender", VoiceGender.girl.value).lower()
                     claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"
-                    prompt = ASD_prompt if select_llm_module == ASDLLM else self.config["prompt"]
+                    prompt = ASD_prompt if select_llm_module == ASDLLM else self.config.get("atis").get("prompt")
                     conn.change_system_prompt(prompt.format(claiming, theme))
 
                     # 重新初始化组件
