@@ -1,4 +1,4 @@
-def get_string_no_punctuation_or_emoji(s):
+def get_string_no_punctuation_or_emoji(s, is_keep_end_punctuation=False):
     """去除字符串首尾的空格、标点符号和表情符号"""
     chars = list(s)
     # 处理开头的字符
@@ -7,10 +7,10 @@ def get_string_no_punctuation_or_emoji(s):
         start += 1
     # 处理结尾的字符
     end = len(chars) - 1
-    while end >= start and is_punctuation_or_emoji(chars[end]):
-        end -= 1
+    if not is_keep_end_punctuation:
+        while end >= start and not is_punctuation_or_emoji(chars[end]):
+            end -= 1
     return "".join(chars[start : end + 1])
-
 
 def is_punctuation_or_emoji(char):
     """检查字符是否为空格、指定标点或表情符号"""

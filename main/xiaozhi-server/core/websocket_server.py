@@ -1,10 +1,15 @@
 import asyncio
 import websockets
-from config.logger import setup_logging
+import random
+
+from config.logger import setup_logging, build_module_string, update_module_string
 from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
+from core.providers.tts.dto.dto import VoiceGender
+from core.utils.dialogue import ASD_prompt
 from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
+from core.utils import llm as llm_create
 
 TAG = __name__
 
@@ -27,6 +32,7 @@ class WebSocketServer:
         self._vad = modules["vad"] if "vad" in modules else None
         self._asr = modules["asr"] if "asr" in modules else None
         self._llm = modules["llm"] if "llm" in modules else None
+        self._tts = modules["tts"] if "tts" in modules else None
         self._intent = modules["intent"] if "intent" in modules else None
         self._memory = modules["memory"] if "memory" in modules else None
 
@@ -115,6 +121,56 @@ class WebSocketServer:
                 if "memory" in modules:
                     self._memory = modules["memory"]
                 self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
+                return True
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"更新服务器配置失败: {str(e)}")
+            return False
+
+    async def update_config_from_client(self, conn: ConnectionHandler, atis_config: dict) -> bool:
+        """更新服务器配置并重新初始化组件
+
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            async with self.config_lock:
+                # 0. 重新获取配置
+                voice_config = atis_config.get("voice_config")
+                self.logger.bind(tag=TAG).info(f"获取新配置成功")
+                ASDLLM = "ASDLLM"
+
+                # 1.更新配置 部分
+                # 1.1 确定模型
+                if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                    select_llm_module = ASDLLM
+                else:
+                    select_llm_module = self.config["selected_module"]["LLM"]
+
+                # 1.2 更新提示词 和 llm 模型
+                theme = atis_config.get("theme")
+                if theme is not None:
+                    gender = voice_config.get("gender", VoiceGender.girl.value).lower()
+                    claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"
+                    prompt = ASD_prompt if select_llm_module == ASDLLM else self.config.get("atis").get("prompt")
+                    conn.change_system_prompt(prompt.format(claiming, theme))
+
+                    # 重新初始化组件
+                    if select_llm_module != self.config["selected_module"]["LLM"]:
+                        llm_type = self.config["LLM"][select_llm_module]["type"]
+                        conn._llm = llm_create.create_instance(
+                            llm_type,
+                            self.config["LLM"][select_llm_module],
+                        )
+                        self.logger.bind(tag=TAG).info(f"初始化组件: llm成功 {select_llm_module}")
+
+                conn.tts.update_config(voice_config)
+
+                self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
+
+                selected_module_str = build_module_string(
+                    self.config.get("selected_module", {})
+                )
+                update_module_string(selected_module_str)
                 return True
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"更新服务器配置失败: {str(e)}")
