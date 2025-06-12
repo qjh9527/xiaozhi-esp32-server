@@ -12,6 +12,7 @@ from config.logger import setup_logging
 from typing import Optional, Tuple, List
 from core.handle.receiveAudioHandle import startToChat
 from core.handle.reportHandle import enqueue_asr_report
+from core.handle.sendAudioHandle import send_stt_state_message
 from core.utils.util import remove_punctuation_and_length
 from core.handle.receiveAudioHandle import handleAudioMessage
 
@@ -77,6 +78,7 @@ class ASRProviderBase(ABC):
 
     # 处理语音停止
     async def handle_voice_stop(self, conn, asr_audio_task):
+        await send_stt_state_message(conn, "user_speak_end")
         raw_text, _ = await self.speech_to_text(
             asr_audio_task, conn.session_id, conn.audio_format
         )  # 确保ASR模块返回原始文本
