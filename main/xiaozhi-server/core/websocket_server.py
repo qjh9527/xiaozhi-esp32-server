@@ -150,6 +150,7 @@ class WebSocketServer:
             bool: 更新是否成功
         """
         try:
+            if conn.config.get("atis") is None: return False
             async with self.config_lock:
                 # 0. 重新获取配置
                 voice_config = atis_config.get("voice_config")

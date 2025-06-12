@@ -19,7 +19,7 @@ async def handleAtisMessage(conn, msg_json):
         # server 发送总结消息. 发送后关闭连接
         conn.close_after_chat = True
         conn.client_abort = False
-        prompt = conn.config.get("atis").get("end_prompt", {})
+        prompt = conn.config.get("atis").get("end_prompt", None)
         if not prompt:
             prompt = "请你以“时间过得真快”为开头，用富有感情、依依不舍的话来结束这场对话吧。！"
 
