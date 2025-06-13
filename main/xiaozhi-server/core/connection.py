@@ -152,7 +152,7 @@ class ConnectionHandler:
         # {"mcp":true} 表示启用MCP功能
         self.features = None
 
-        self.have_atis = server.have_atis
+        self.atis_config = self.config.get("atis")
 
     async def handle_connection(self, ws):
         try:

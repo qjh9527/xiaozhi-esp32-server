@@ -36,8 +36,6 @@ class WebSocketServer:
         self._intent = modules["intent"] if "intent" in modules else None
         self._memory = modules["memory"] if "memory" in modules else None
 
-        self.have_atis = self.config.get("atis") is not None
-
         self.active_connections = set()
 
     async def start(self):
@@ -135,7 +133,7 @@ class WebSocketServer:
             bool: 更新是否成功
         """
         try:
-            if not self.have_atis: return False
+            if conn.atis_config is None: return False
             async with self.config_lock:
                 # 0. 重新获取配置
                 voice_config = atis_config.get("voice_config")

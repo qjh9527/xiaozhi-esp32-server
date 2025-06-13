@@ -325,7 +325,7 @@ class TTSProviderBase(ABC):
 
         if last_punct_pos != -1:
             segment_text_raw = current_text[: last_punct_pos + 1]
-            if self.conn.have_atis:
+            if self.conn.atis_config is not None:
                 segment_text = textUtils.get_string_no_punctuation_or_emoji(
                     segment_text_raw,
                     self.conn.config.get("atis", {}).get("is_keep_end_punctuation", True))
@@ -389,7 +389,7 @@ class TTSProviderBase(ABC):
         full_text = "".join(self.tts_text_buff)
         remaining_text = full_text[self.processed_chars :]
         if remaining_text:
-            if self.conn.have_atis:
+            if self.conn.atis_config is not None:
                 segment_text = textUtils.get_string_no_punctuation_or_emoji(
                     remaining_text,
                     self.conn.config.get("atis", {}).get("is_keep_end_punctuation", True))
