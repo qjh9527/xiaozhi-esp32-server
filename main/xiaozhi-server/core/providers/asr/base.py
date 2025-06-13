@@ -13,6 +13,7 @@ from typing import Optional, Tuple, List
 from core.handle.receiveAudioHandle import startToChat
 from core.handle.reportHandle import enqueue_asr_report
 from core.handle.sendAudioHandle import send_stt_state_message
+from core.handle.utilsHandle import send_error_message
 from core.utils.util import remove_punctuation_and_length
 from core.handle.receiveAudioHandle import handleAudioMessage
 
@@ -89,6 +90,14 @@ class ASRProviderBase(ABC):
             # 使用自定义模块进行上报
             await startToChat(conn, raw_text)
             enqueue_asr_report(conn, raw_text, asr_audio_task)
+        else:
+            if conn.atis_config is None: return
+            if raw_text is None:
+                await send_error_message(conn, "asr", "asr_error", "")
+            else:
+                raw_text = conn.config.get("atis").get("no_valid_voice")
+                await startToChat(conn, raw_text)
+                enqueue_asr_report(conn, raw_text, asr_audio_task)
 
     def stop_ws_connection(self):
         pass

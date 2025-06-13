@@ -61,3 +61,16 @@ async def update_config(conn, msg_type, *args, **kwargs):
                 }
             )
         )
+
+async def send_error_message(conn, module, msg_type, message):
+    """发送错误消息"""
+    try:
+        error_message = {
+            "type": "error",
+            "error_module": module,
+            "error_type": msg_type,
+            "error_message": message,
+        }
+        await conn.websocket.send(json.dumps(error_message))
+    except Exception as e:
+        conn.logger.bind(tag=TAG).error(f"发送错误消息失败: {str(e)}")
