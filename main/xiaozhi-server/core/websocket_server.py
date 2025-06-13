@@ -147,6 +147,8 @@ class WebSocketServer:
                 else:
                     select_llm_module = self.config["selected_module"]["LLM"]
 
+                conn.select_llm_module = select_llm_module
+
                 # 1.2 更新提示词 和 llm 模型
                 theme = atis_config.get("theme")
                 if theme is not None:
