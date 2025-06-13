@@ -93,7 +93,7 @@ async def no_voice_close_connect(conn, have_voice):
             await startToChat(conn, prompt)
 
 async def no_voice_send_msg(conn, have_voice):
-    if conn.have_atis: return
+    if conn.atis_config is not None: return
 
     if conn.client_listen_mode == "manual":
         return
@@ -113,7 +113,7 @@ async def no_voice_send_msg(conn, have_voice):
             not conn.close_after_chat
             and no_voice_time > 1000 * no_voice_time_config
         ):
-            await startToChat(conn, "儿童无响应")
+            await startToChat(conn, conn.no_valid_voice)
 
 async def max_out_size(conn):
     text = "不好意思，我现在有点事情要忙，明天这个时候我们再聊，约好了哦！明天不见不散，拜拜！"
