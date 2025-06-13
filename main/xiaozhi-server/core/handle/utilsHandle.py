@@ -49,7 +49,7 @@ async def update_config(conn, msg_type, *args, **kwargs):
         if hasattr(conn, "select_llm_module"):
             message_data["llm"] = conn.select_llm_module
         # 发送成功响应
-        await conn.websocket.send(message_data)
+        await conn.websocket.send(json.dumps(message_data))
     except Exception as e:
         conn.logger.bind(tag=TAG).error(f"更新配置失败: {str(e)}")
         await conn.websocket.send(

@@ -142,10 +142,15 @@ class WebSocketServer:
 
                 # 1.更新配置 部分
                 # 1.1 确定模型
-                if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                user_name = atis_config.get("userName")
+                if user_name is not None and "asd" in user_name.lower():
+                    # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
                     select_llm_module = ASDLLM
                 else:
-                    select_llm_module = self.config["selected_module"]["LLM"]
+                    if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                        select_llm_module = ASDLLM
+                    else:
+                        select_llm_module = self.config["selected_module"]["LLM"]
 
                 conn.select_llm_module = select_llm_module
 
