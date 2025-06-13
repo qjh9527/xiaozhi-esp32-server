@@ -38,17 +38,18 @@ async def update_config(conn, msg_type, *args, **kwargs):
             )
             return
 
+        message_data = {
+            "type": msg_type,
+            "status": "success",
+            "message": "配置更新成功",
+            "content": {"action": "update_config"}
+        }
+
+        # 如果存在select_llm_module属性，则添加到content中
+        if hasattr(conn, "select_llm_module"):
+            message_data["llm"] = conn.select_llm_module
         # 发送成功响应
-        await conn.websocket.send(
-            json.dumps(
-                {
-                    "type": msg_type,
-                    "status": "success",
-                    "message": "配置更新成功",
-                    "content": {"action": "update_config"},
-                }
-            )
-        )
+        await conn.websocket.send(json.dumps(message_data))
     except Exception as e:
         conn.logger.bind(tag=TAG).error(f"更新配置失败: {str(e)}")
         await conn.websocket.send(
@@ -61,3 +62,16 @@ async def update_config(conn, msg_type, *args, **kwargs):
                 }
             )
         )
+
+async def send_error_message(conn, module, msg_type, message):
+    """发送错误消息"""
+    try:
+        error_message = {
+            "type": "error",
+            "error_module": module,
+            "error_type": msg_type,
+            "error_message": message,
+        }
+        await conn.websocket.send(json.dumps(error_message))
+    except Exception as e:
+        conn.logger.bind(tag=TAG).error(f"发送错误消息失败: {str(e)}")

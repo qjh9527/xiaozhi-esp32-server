@@ -152,6 +152,8 @@ class ConnectionHandler:
         # {"mcp":true} 表示启用MCP功能
         self.features = None
 
+        self.atis_config = self.config.get("atis")
+
     async def handle_connection(self, ws):
         try:
             # 获取并验证headers
@@ -934,7 +936,9 @@ class ConnectionHandler:
         """清空所有任务队列"""
         if self.tts:
             self.logger.bind(tag=TAG).debug(
-                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, 音频队列大小={self.tts.tts_audio_queue.qsize()}"
+                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, "
+                f"音频队列大小={self.tts.tts_audio_queue.qsize()}, "
+                f"session_id {self.session_id}"
             )
 
             # 使用非阻塞方式清空队列

@@ -12,7 +12,7 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
-    have_voice = conn.vad.is_vad(conn, audio)
+    have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
     if have_voice and hasattr(conn, "just_woken_up") and conn.just_woken_up:
         have_voice = False
@@ -27,6 +27,8 @@ async def handleAudioMessage(conn, audio):
             await handleAbortMessage(conn)
     # 设备长时间空闲检测，用于say goodbye
     await no_voice_close_connect(conn, have_voice)
+    # 用户短时间未说话
+    await no_voice_send_msg(conn, have_voice)
     # 接收音频
     await conn.asr.receive_audio(conn, audio, have_voice)
 
@@ -91,6 +93,28 @@ async def no_voice_close_connect(conn, have_voice):
                 prompt = "请你以```时间过得真快```未来头，用富有感情、依依不舍的话来结束这场对话吧。！"
             await startToChat(conn, prompt)
 
+async def no_voice_send_msg(conn, have_voice):
+    if conn.atis_config is not None: return
+
+    if conn.client_listen_mode == "manual":
+        return
+
+    if have_voice:
+        conn.listen_start_time = 0.0
+        return
+
+    if conn.listen_start_time == 0.0:
+        return
+    else:
+        no_voice_time = time.time() * 1000 - conn.listen_start_time
+        no_voice_time_config = int(
+            conn.config.get("atis", {}).get("no_voice_time", 10)
+        )
+        if (
+            not conn.close_after_chat
+            and no_voice_time > 1000 * no_voice_time_config
+        ):
+            await startToChat(conn, conn.no_valid_voice)
 
 async def max_out_size(conn):
     text = "不好意思，我现在有点事情要忙，明天这个时候我们再聊，约好了哦！明天不见不散，拜拜！"

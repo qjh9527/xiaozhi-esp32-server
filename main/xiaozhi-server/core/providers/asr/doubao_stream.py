@@ -4,6 +4,8 @@ import uuid
 import asyncio
 import websockets
 import opuslib_next
+
+from core.handle.sendAudioHandle import send_stt_start_message
 from core.providers.asr.base import ASRProviderBase
 from config.logger import setup_logging
 from core.providers.asr.dto.dto import InterfaceType

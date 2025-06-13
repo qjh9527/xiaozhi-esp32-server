@@ -133,6 +133,7 @@ class WebSocketServer:
             bool: 更新是否成功
         """
         try:
+            if conn.atis_config is None: return False
             async with self.config_lock:
                 # 0. 重新获取配置
                 voice_config = atis_config.get("voice_config")
@@ -141,10 +142,17 @@ class WebSocketServer:
 
                 # 1.更新配置 部分
                 # 1.1 确定模型
-                if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                user_name = atis_config.get("userName")
+                if user_name is not None and "asd" in user_name.lower():
+                    # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
                     select_llm_module = ASDLLM
                 else:
-                    select_llm_module = self.config["selected_module"]["LLM"]
+                    if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                        select_llm_module = ASDLLM
+                    else:
+                        select_llm_module = self.config["selected_module"]["LLM"]
+
+                conn.select_llm_module = select_llm_module
 
                 # 1.2 更新提示词 和 llm 模型
                 theme = atis_config.get("theme")

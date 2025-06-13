@@ -1,4 +1,6 @@
 import json
+import time
+
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.helloHandle import handleHelloMessage
 from core.handle.atisHandle import handleAtisMessage
@@ -42,6 +44,7 @@ async def handleTextMessage(conn, message: str):
             if msg_json["state"] == "start":
                 conn.client_have_voice = True
                 conn.client_voice_stop = False
+                conn.listen_start_time = time.time() * 1000
             elif msg_json["state"] == "stop":
                 conn.client_have_voice = True
                 conn.client_voice_stop = True
