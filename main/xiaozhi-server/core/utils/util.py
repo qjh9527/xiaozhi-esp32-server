@@ -159,6 +159,8 @@ def get_string_no_punctuation_or_emoji(s):
 
 
 def remove_punctuation_and_length(text):
+    if text is None:
+        return 0, None
     # 全角符号和半角符号的Unicode范围
     full_width_punctuations = (
         "！＂＃＄％＆＇（）＊＋，－。／：；＜＝＞？＠［＼］＾＿｀｛｜｝～"
