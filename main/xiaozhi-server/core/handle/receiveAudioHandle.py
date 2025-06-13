@@ -94,7 +94,7 @@ async def no_voice_close_connect(conn, have_voice):
             await startToChat(conn, prompt)
 
 async def no_voice_send_msg(conn, have_voice):
-    if conn.config.get("atis") is None: return
+    if conn.have_atis: return
 
     if conn.client_listen_mode == "manual":
         return
