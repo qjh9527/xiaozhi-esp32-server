@@ -95,7 +95,7 @@ class ASRProviderBase(ABC):
             if raw_text is None:
                 await send_error_message(conn, "asr", "asr_error", "")
             else:
-                raw_text = conn.config.get("atis").get("no_valid_voice")
+                raw_text = conn.atis_config.get("no_valid_voice")
                 await startToChat(conn, raw_text)
                 enqueue_asr_report(conn, raw_text, asr_audio_task)
 

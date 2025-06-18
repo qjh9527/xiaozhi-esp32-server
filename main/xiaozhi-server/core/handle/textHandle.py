@@ -44,7 +44,7 @@ async def handleTextMessage(conn, message: str):
             if msg_json["state"] == "start":
                 conn.client_have_voice = conn.atis_config is None
                 conn.client_voice_stop = False
-                conn.listen_start_time = time.time() * 1000
+                conn.listen_start_time = time.time()
             elif msg_json["state"] == "stop":
                 conn.client_have_voice = conn.atis_config is None
                 conn.client_voice_stop = True
