@@ -1,4 +1,6 @@
 import asyncio
+import copy
+
 import websockets
 import random
 
@@ -151,6 +153,9 @@ class WebSocketServer:
         """
         try:
             if conn.atis_config is None: return False
+            # 测试模型时，不更新配置
+            TestLLM = "Test"
+            if self.config["selected_module"]["LLM"] == TestLLM: return True
             async with self.config_lock:
                 # 0. 重新获取配置
                 voice_config = atis_config.get("voice_config")
@@ -182,7 +187,7 @@ class WebSocketServer:
                     # 重新初始化组件
                     if select_llm_module != self.config["selected_module"]["LLM"]:
                         llm_type = self.config["LLM"][select_llm_module]["type"]
-                        conn._llm = llm_create.create_instance(
+                        conn.llm = llm_create.create_instance(
                             llm_type,
                             self.config["LLM"][select_llm_module],
                         )
@@ -192,9 +197,9 @@ class WebSocketServer:
 
                 self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
 
-                selected_module_str = build_module_string(
-                    self.config.get("selected_module", {})
-                )
+                selected_module = copy.deepcopy(self.config.get("selected_module", {}))
+                selected_module["LLM"] = select_llm_module
+                selected_module_str = build_module_string(selected_module)
                 update_module_string(selected_module_str)
                 return True
         except Exception as e:
