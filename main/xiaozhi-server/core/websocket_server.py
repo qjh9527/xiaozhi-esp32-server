@@ -158,6 +158,7 @@ class WebSocketServer:
             if self.config["selected_module"]["LLM"] == TestLLM: return True
             async with self.config_lock:
                 # 0. 重新获取配置
+                asd_probability = atis_config.get("asd_probability", 0.1)
                 voice_config = atis_config.get("voice_config")
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 ASDLLM = "ASDLLM"
@@ -169,7 +170,7 @@ class WebSocketServer:
                     # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
                     select_llm_module = ASDLLM
                 else:
-                    if ASDLLM in self.config["LLM"] and random.randint(1, 10) == 1:
+                    if ASDLLM in self.config["LLM"] and random.randint(1, 10) <= (asd_probability * 10):
                         select_llm_module = ASDLLM
                     else:
                         select_llm_module = self.config["selected_module"]["LLM"]
