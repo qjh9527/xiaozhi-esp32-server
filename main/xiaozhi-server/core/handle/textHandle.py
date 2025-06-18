@@ -42,11 +42,11 @@ async def handleTextMessage(conn, message: str):
                     f"客户端拾音模式：{conn.client_listen_mode}"
                 )
             if msg_json["state"] == "start":
-                conn.client_have_voice = True
+                conn.client_have_voice = conn.atis_config is None
                 conn.client_voice_stop = False
                 conn.listen_start_time = time.time() * 1000
             elif msg_json["state"] == "stop":
-                conn.client_have_voice = True
+                conn.client_have_voice = conn.atis_config is None
                 conn.client_voice_stop = True
                 if len(conn.asr_audio) > 0:
                     await handleAudioMessage(conn, b"")
