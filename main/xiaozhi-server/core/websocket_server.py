@@ -8,7 +8,6 @@ from config.logger import setup_logging, build_module_string, update_module_stri
 from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
 from core.providers.tts.dto.dto import VoiceGender
-from core.utils.dialogue import ASD_prompt
 from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
 from core.utils import llm as llm_create
@@ -182,7 +181,7 @@ class WebSocketServer:
                 if theme is not None:
                     gender = voice_config.get("gender", VoiceGender.girl.value).lower()
                     claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"
-                    prompt = ASD_prompt if select_llm_module == ASDLLM else conn.atis_config.get("prompt")
+                    prompt = conn.atis_config.get("asd_prompt") if select_llm_module == ASDLLM else conn.atis_config.get("prompt")
                     conn.change_system_prompt(prompt.format(claiming, theme))
 
                     # 重新初始化组件
