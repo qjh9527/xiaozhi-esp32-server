@@ -268,4 +268,4 @@ class ASRProvider(ASRProviderBase):
 
         except Exception as e:
             logger.bind(tag=TAG).error(f"语音识别失败: {e}", exc_info=True)
-            return "", file_path
+            return None, file_path

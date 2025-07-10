@@ -18,7 +18,6 @@ class Message:
         self.tool_calls = tool_calls
         self.tool_call_id = tool_call_id
 
-
 class Dialogue:
     def __init__(self):
         self.dialogue: List[Message] = []
