@@ -58,6 +58,10 @@ class Dialogue:
         else:
             self.put(Message(role="system", content=new_content))
 
+    def add_system_message(self, new_content: str):
+        """添加系统消息"""
+        self.put(Message(role="system", content=new_content))
+
     def get_llm_dialogue_with_memory(
         self, memory_str: str = None
     ) -> List[Dict[str, str]]:
