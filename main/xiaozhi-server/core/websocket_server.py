@@ -4,7 +4,7 @@ import copy
 import websockets
 import random
 
-from config.logger import setup_logging, build_module_string, update_module_string
+from config.logger import setup_logging, build_module_string, create_connection_logger
 from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
 from core.providers.tts.dto.dto import VoiceGender
@@ -200,7 +200,7 @@ class WebSocketServer:
                 selected_module = copy.deepcopy(self.config.get("selected_module", {}))
                 selected_module["LLM"] = select_llm_module
                 selected_module_str = build_module_string(selected_module)
-                update_module_string(selected_module_str)
+                self.logger = create_connection_logger(selected_module_str)
                 return True
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"更新服务器配置失败: {str(e)}")
