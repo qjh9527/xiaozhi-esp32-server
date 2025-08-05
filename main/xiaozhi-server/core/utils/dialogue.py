@@ -19,7 +19,6 @@ class Message:
         self.tool_calls = tool_calls
         self.tool_call_id = tool_call_id
 
-
 class Dialogue:
     def __init__(self):
         self.dialogue: List[Message] = []
@@ -58,6 +57,10 @@ class Dialogue:
             system_msg.content = new_content
         else:
             self.put(Message(role="system", content=new_content))
+
+    def add_system_message(self, new_content: str):
+        """添加系统消息"""
+        self.put(Message(role="system", content=new_content))
 
     def get_llm_dialogue_with_memory(
         self, memory_str: str = None, voiceprint_config: dict = None

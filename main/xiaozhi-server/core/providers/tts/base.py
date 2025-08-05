@@ -19,6 +19,7 @@ from core.providers.tts.dto.dto import (
     SentenceType,
     ContentType,
     InterfaceType,
+    VoiceGender,
 )
 
 import traceback
@@ -302,13 +303,21 @@ class TTSProviderBase(ABC):
             if (pos != -1 and last_punct_pos == -1) or (
                 pos != -1 and pos < last_punct_pos
             ):
-                last_punct_pos = pos
+                if pos < len(current_text) - 1:
+                    # 符号后有数字时，不分割语句
+                    if not current_text[pos+1].isdigit():
+                        last_punct_pos = pos
+                else:
+                    last_punct_pos = pos
 
         if last_punct_pos != -1:
             segment_text_raw = current_text[: last_punct_pos + 1]
-            segment_text = textUtils.get_string_no_punctuation_or_emoji(
-                segment_text_raw
-            )
+            if self.conn.atis_config is not None:
+                segment_text = textUtils.get_string_no_punctuation_or_emoji(
+                    segment_text_raw,
+                    self.conn.config.get("atis", {}).get("is_keep_end_punctuation", True))
+            else:
+                segment_text = textUtils.get_string_no_punctuation_or_emoji(segment_text_raw)
             self.processed_chars += len(segment_text_raw)  # 更新已处理字符位置
 
             # 如果是第一句话，在找到第一个逗号后，将标志设置为False
@@ -364,7 +373,12 @@ class TTSProviderBase(ABC):
         full_text = "".join(self.tts_text_buff)
         remaining_text = full_text[self.processed_chars :]
         if remaining_text:
-            segment_text = textUtils.get_string_no_punctuation_or_emoji(remaining_text)
+            if self.conn.atis_config is not None:
+                segment_text = textUtils.get_string_no_punctuation_or_emoji(
+                    remaining_text,
+                    self.conn.config.get("atis", {}).get("is_keep_end_punctuation", True))
+            else:
+                segment_text = textUtils.get_string_no_punctuation_or_emoji(remaining_text)
             if segment_text:
                 if self.delete_audio_file:
                     audio_datas = self.to_tts(segment_text)
@@ -381,3 +395,10 @@ class TTSProviderBase(ABC):
                 self.processed_chars += len(full_text)
                 return True
         return False
+
+    def update_config(self, voice_config: dict):
+        """更新 tts 配置信息
+        1. 语速
+        2. 声音名称、角色
+        """
+        pass

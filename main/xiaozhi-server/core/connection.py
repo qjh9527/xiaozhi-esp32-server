@@ -161,6 +161,8 @@ class ConnectionHandler:
         # 初始化提示词管理器
         self.prompt_manager = PromptManager(config, self.logger)
 
+        self.atis_config = self.config.get("atis")
+
     async def handle_connection(self, ws):
         try:
             # 获取并验证headers
@@ -664,11 +666,11 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, tool_call=False, depth=0):
+    def chat(self, query=None, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
 
-        if not tool_call:
+        if not tool_call and query is not None:
             self.dialogue.put(Message(role="user", content=query))
 
         # 为最顶层时新建会话ID和发送FIRST请求
@@ -691,7 +693,7 @@ class ConnectionHandler:
         try:
             # 使用带记忆的对话
             memory_str = None
-            if self.memory is not None:
+            if self.memory is not None and query is not None:
                 future = asyncio.run_coroutine_threadsafe(
                     self.memory.query_memory(query), self.loop
                 )
@@ -1013,7 +1015,9 @@ class ConnectionHandler:
         """清空所有任务队列"""
         if self.tts:
             self.logger.bind(tag=TAG).debug(
-                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, 音频队列大小={self.tts.tts_audio_queue.qsize()}"
+                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, "
+                f"音频队列大小={self.tts.tts_audio_queue.qsize()}, "
+                f"session_id {self.session_id}"
             )
 
             # 使用非阻塞方式清空队列

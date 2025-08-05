@@ -22,6 +22,10 @@ class InterfaceType(Enum):
     SINGLE_STREAM = "SINGLE_STREAM"  # 单流式
     NON_STREAM = "NON_STREAM"  # 非流式
 
+class VoiceGender(Enum):
+    # 声音性别
+    boy = "boy"  # 男性
+    girl = "girl"  # 女性
 
 class TTSMessageDTO:
     def __init__(

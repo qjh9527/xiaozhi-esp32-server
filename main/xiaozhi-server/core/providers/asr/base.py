@@ -15,6 +15,8 @@ from config.logger import setup_logging
 from typing import Optional, Tuple, List, Dict, Any
 from core.handle.receiveAudioHandle import startToChat
 from core.handle.reportHandle import enqueue_asr_report
+from core.handle.sendAudioHandle import send_stt_state_message
+from core.handle.utilsHandle import send_error_message
 from core.utils.util import remove_punctuation_and_length
 from core.handle.receiveAudioHandle import handleAudioMessage
 
@@ -75,6 +77,9 @@ class ASRProviderBase(ABC):
     async def handle_voice_stop(self, conn, asr_audio_task: List[bytes]):
         """并行处理ASR和声纹识别"""
         try:
+            # 开始asr 通知客户端，明确用户说完话了
+            await send_stt_state_message(conn, "user_speak_end")
+
             total_start_time = time.monotonic()
             
             # 准备音频数据
@@ -175,7 +180,20 @@ class ASRProviderBase(ABC):
                 # 使用自定义模块进行上报
                 await startToChat(conn, enhanced_text)
                 enqueue_asr_report(conn, enhanced_text, asr_audio_task)
-                
+            else:
+                if conn.atis_config is None: return
+                if raw_text is None:
+                    await send_error_message(conn, "asr", "asr_error", "")
+                else:
+                    raw_text = conn.atis_config.get("no_valid_voice")
+                    await startToChat(conn, raw_text)
+                    enqueue_asr_report(conn, raw_text, asr_audio_task)
+
+            raw_text, _ = await self.speech_to_text(
+                asr_audio_task, conn.session_id, conn.audio_format
+            )  # 确保ASR模块返回原始文本
+
+
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
             import traceback

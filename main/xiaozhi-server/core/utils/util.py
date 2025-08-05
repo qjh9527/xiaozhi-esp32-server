@@ -126,6 +126,8 @@ def write_json_file(file_path, data):
 
 
 def remove_punctuation_and_length(text):
+    if text is None:
+        return 0, None
     # 全角符号和半角符号的Unicode范围
     full_width_punctuations = (
         "！＂＃＄％＆＇（）＊＋，－。／：；＜＝＞？＠［＼］＾＿｀｛｜｝～"
