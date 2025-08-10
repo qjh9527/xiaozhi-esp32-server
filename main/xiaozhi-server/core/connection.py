@@ -388,6 +388,9 @@ class ConnectionHandler:
 
     def _init_prompt_enhancement(self):
         # 更新上下文信息
+        if self.atis_config is not None:
+            # 此处是属于小智的提示词增强功能
+            return
         self.prompt_manager.update_context_info(self, self.client_ip)
         enhanced_prompt = self.prompt_manager.build_enhanced_prompt(
             self.config["prompt"], self.device_id, self.client_ip
@@ -835,11 +838,8 @@ class ConnectionHandler:
             )
         self.llm_finish_task = True
         # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
-        self.logger.bind(tag=TAG).debug(
-            lambda: json.dumps(
-                self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False
-            )
-        )
+        log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False)
+        self.logger.bind(tag=TAG).debug(log_message())
 
         return True
 

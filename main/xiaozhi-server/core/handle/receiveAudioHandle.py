@@ -13,7 +13,10 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
-    have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
+    if conn.atis_config is None:
+        have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
+    else:
+        have_voice = conn.vad.is_vad(conn, audio)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
     if have_voice and hasattr(conn, "just_woken_up") and conn.just_woken_up:
         have_voice = False

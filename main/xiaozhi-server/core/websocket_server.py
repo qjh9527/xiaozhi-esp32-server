@@ -147,6 +147,10 @@ class WebSocketServer:
     async def update_config_from_client(self, conn: ConnectionHandler, atis_config: dict) -> bool:
         """更新服务器配置并重新初始化组件
 
+        Args:
+            conn (ConnectionHandler): conn
+            atis_config (dict): 客户端发送的配置
+
         Returns:
             bool: 更新是否成功
         """
@@ -157,7 +161,7 @@ class WebSocketServer:
             if self.config["selected_module"]["LLM"] == TestLLM: return True
             async with self.config_lock:
                 # 0. 重新获取配置
-                asd_probability = atis_config.get("asd_probability", 0.1)
+                asd_probability = conn.atis_config.get("asd_probability", 0.1)
                 voice_config = atis_config.get("voice_config")
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 ASDLLM = "ASDLLM"
@@ -171,8 +175,10 @@ class WebSocketServer:
                 else:
                     if ASDLLM in self.config["LLM"] and random.randint(1, 10) <= (asd_probability * 10):
                         select_llm_module = ASDLLM
+                        print(f"用户 {user_name} 触发了ASD模型")
                     else:
                         select_llm_module = self.config["selected_module"]["LLM"]
+                        print(f"用户 {user_name} 未触发ASD模型")
 
                 conn.select_llm_module = select_llm_module
 

@@ -176,7 +176,7 @@ class ASRProvider(ASRProviderBase):
                         self.text = result["payload_msg"]["result"]["text"]
                         logger.bind(tag=TAG).info(f"识别到文本: {self.text}")
                         conn.reset_vad_states()
-                        await self.handle_voice_stop(conn, None)
+                        await self.handle_voice_stop(conn, conn.asr_audio)
                         self.last = False
                         break
 
