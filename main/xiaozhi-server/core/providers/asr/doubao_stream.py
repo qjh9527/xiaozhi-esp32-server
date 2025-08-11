@@ -65,6 +65,11 @@ class ASRProvider(ASRProviderBase):
         conn.asr_audio.append(audio)
         conn.asr_audio = conn.asr_audio[-10:]
 
+        # 存储音频数据
+        if not hasattr(conn, 'asr_audio_for_voiceprint'):
+            conn.asr_audio_for_voiceprint = []
+        conn.asr_audio_for_voiceprint.append(audio)
+
         # 如果本次有声音，且之前没有建立连接
         if audio_have_voice and self.asr_ws is None and not self.is_processing:
             try:
@@ -168,6 +173,8 @@ class ASRProvider(ASRProviderBase):
     async def _forward_asr_results(self, conn):
         try:
             while self.asr_ws and not conn.stop_event.is_set():
+                # 获取当前连接的音频数据
+                audio_data = getattr(conn, 'asr_audio_for_voiceprint', [])
                 try:
                     response = await self.asr_ws.recv()
                     result = self.parse_response(response)
@@ -176,7 +183,7 @@ class ASRProvider(ASRProviderBase):
                         self.text = result["payload_msg"]["result"]["text"]
                         logger.bind(tag=TAG).info(f"识别到文本: {self.text}")
                         conn.reset_vad_states()
-                        await self.handle_voice_stop(conn, conn.asr_audio)
+                        await self.handle_voice_stop(conn, audio_data)
                         self.last = False
                         break
 
@@ -200,6 +207,11 @@ class ASRProvider(ASRProviderBase):
                 await self.asr_ws.close()
                 self.asr_ws = None
             self.is_processing = False
+            if conn:
+                if hasattr(conn, 'asr_audio_for_voiceprint'):
+                    conn.asr_audio_for_voiceprint = []
+                if hasattr(conn, 'asr_audio'):
+                    conn.asr_audio = []
 
     def stop_ws_connection(self):
         if self.asr_ws:
