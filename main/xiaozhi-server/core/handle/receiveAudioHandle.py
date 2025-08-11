@@ -13,7 +13,7 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
-    if conn.atis_config is None:
+    if conn.atis_config is not None:
         have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
     else:
         have_voice = conn.vad.is_vad(conn, audio)
