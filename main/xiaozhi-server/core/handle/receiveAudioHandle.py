@@ -1,4 +1,4 @@
-from core.handle.sendAudioHandle import send_stt_message
+from core.handle.sendAudioHandle import send_stt_message, send_stt_state_message
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
 from core.handle.abortHandle import handleAbortMessage
@@ -13,10 +13,16 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
+    last_client_have_voice = conn.client_have_voice
     if conn.atis_config is not None:
         have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
     else:
         have_voice = conn.vad.is_vad(conn, audio)
+
+    if have_voice and not last_client_have_voice:
+        # 告诉客户端，服务端识别到了声音 开始了 STT
+        await send_stt_state_message(conn, "start")
+
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
     if have_voice and hasattr(conn, "just_woken_up") and conn.just_woken_up:
         have_voice = False

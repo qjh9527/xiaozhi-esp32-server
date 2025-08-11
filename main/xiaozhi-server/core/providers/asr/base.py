@@ -77,8 +77,8 @@ class ASRProviderBase(ABC):
     async def handle_voice_stop(self, conn, asr_audio_task: List[bytes]):
         """并行处理ASR和声纹识别"""
         try:
-            # 开始asr 通知客户端，明确用户说完话了
-            await send_stt_state_message(conn, "user_speak_end")
+            # 开始asr 通知客户端，明确用户说完话了 停止了STT
+            await send_stt_state_message(conn, "stop")
 
             total_start_time = time.monotonic()
             
