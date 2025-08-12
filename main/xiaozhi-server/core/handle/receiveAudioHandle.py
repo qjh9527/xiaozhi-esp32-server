@@ -13,14 +13,19 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
-    last_client_have_voice = conn.client_have_voice
     if conn.atis_config is not None:
-        have_voice = True if conn.client_listen_mode == "manual" else conn.vad.is_vad(conn, audio)
+        if conn.client_listen_mode == "manual":
+            conn.client_have_voice = True
+            conn.last_activity_time = time.time() * 1000
+            have_voice = True
+        else:
+            have_voice = conn.vad.is_vad(conn, audio)
     else:
         have_voice = conn.vad.is_vad(conn, audio)
 
-    if have_voice and not last_client_have_voice:
+    if have_voice and not conn.first_voice_detected:
         # 告诉客户端，服务端识别到了声音 开始了 STT
+        conn.first_voice_detected = True
         await send_stt_state_message(conn, "start")
 
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
@@ -142,11 +147,14 @@ async def no_voice_send_msg(conn, have_voice):
     else:
         no_voice_time = time.time() - conn.listen_start_time
         last_decision_time = time.time() - conn.no_valid_voice_decision_ts
+        if last_decision_time < conn.atis_config.get("no_voice_time", 10):    # 过滤无有效语音决策时间后，此时间间隔内音频
+            # conn.logger.bind(tag=TAG).warning("重复无效语音决策！")
+            return
         if (
             not conn.close_after_chat
             and no_voice_time > conn.atis_config.get("no_voice_time", 10)
-            and last_decision_time > conn.atis_config.get("no_voice_time", 10)    # 过滤无有效语音决策时间后，此时间间隔内音频
         ):
+            conn.logger.bind(tag=TAG).warning("用户短时间未说话！")
             conn.no_valid_voice_decision_ts = time.time()
             await startToChat(conn, conn.atis_config.get("no_valid_voice"))
 

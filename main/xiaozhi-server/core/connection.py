@@ -164,6 +164,8 @@ class ConnectionHandler:
         self.atis_config = self.config.get("atis")
         # 无有效语音决策时间戳
         self.no_valid_voice_decision_ts = time.time()
+        # 第一次检测到语音
+        self.first_voice_detected = False
 
     async def handle_connection(self, ws):
         try:
@@ -840,7 +842,7 @@ class ConnectionHandler:
             )
         self.llm_finish_task = True
         # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
-        log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False)
+        log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue()[-2:], indent=4, ensure_ascii=False)
         self.logger.bind(tag=TAG).debug(log_message())
 
         return True

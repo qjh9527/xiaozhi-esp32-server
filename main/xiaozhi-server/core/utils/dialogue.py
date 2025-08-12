@@ -47,7 +47,11 @@ class Dialogue:
     def get_llm_dialogue(self) -> List[Dict[str, str]]:
         # 直接调用get_llm_dialogue_with_memory，传入None作为memory_str
         # 这样确保说话人功能在所有调用路径下都生效
-        return self.get_llm_dialogue_with_memory(None, None)
+        # return self.get_llm_dialogue_with_memory(None, None)
+        dialogue = []
+        for m in self.dialogue:
+            self.getMessages(m, dialogue)
+        return dialogue
 
     def update_system_message(self, new_content: str):
         """更新或添加系统消息"""

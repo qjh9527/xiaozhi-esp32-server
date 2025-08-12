@@ -78,6 +78,7 @@ class ASRProviderBase(ABC):
         """并行处理ASR和声纹识别"""
         try:
             # 开始asr 通知客户端，明确用户说完话了 停止了STT
+            conn.first_voice_detected = False
             await send_stt_state_message(conn, "stop")
 
             total_start_time = time.monotonic()
