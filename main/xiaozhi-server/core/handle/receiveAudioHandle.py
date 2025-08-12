@@ -141,13 +141,13 @@ async def no_voice_send_msg(conn, have_voice):
         return
     else:
         no_voice_time = time.time() - conn.listen_start_time
-        no_voice_time_config = int(
-            conn.config.get("atis", {}).get("no_voice_time", 10)
-        )
+        last_decision_time = time.time() - conn.no_valid_voice_decision_ts
         if (
             not conn.close_after_chat
-            and no_voice_time > no_voice_time_config
+            and no_voice_time > conn.atis_config.get("no_voice_time", 10)
+            and last_decision_time > conn.atis_config.get("no_voice_time", 10)    # 过滤无有效语音决策时间后，此时间间隔内音频
         ):
+            conn.no_valid_voice_decision_ts = time.time()
             await startToChat(conn, conn.atis_config.get("no_valid_voice"))
 
 async def max_out_size(conn):

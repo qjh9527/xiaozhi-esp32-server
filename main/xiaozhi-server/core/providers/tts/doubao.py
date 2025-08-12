@@ -93,7 +93,7 @@ class TTSProvider(TTSProviderBase):
                     return audio_bytes
             else:
                 raise Exception(
-                    f"{__name__} status_code: {resp.status_code} response: {resp.content}"
+                    f"{__name__} status_code: {resp.status_code} response: {resp.content} text: {text}"
                 )
         except Exception as e:
             raise Exception(f"{__name__} error: {e}")

@@ -162,6 +162,8 @@ class ConnectionHandler:
         self.prompt_manager = PromptManager(config, self.logger)
 
         self.atis_config = self.config.get("atis")
+        # 无有效语音决策时间戳
+        self.no_valid_voice_decision_ts = time.time()
 
     async def handle_connection(self, ws):
         try:
