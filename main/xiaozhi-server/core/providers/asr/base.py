@@ -190,11 +190,6 @@ class ASRProviderBase(ABC):
                     await startToChat(conn, raw_text)
                     enqueue_asr_report(conn, raw_text, asr_audio_task)
 
-            raw_text, _ = await self.speech_to_text(
-                asr_audio_task, conn.session_id, conn.audio_format
-            )  # 确保ASR模块返回原始文本
-
-
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
             import traceback
@@ -251,6 +246,10 @@ class ASRProviderBase(ABC):
             wf.setsampwidth(2)  # 2 bytes = 16-bit
             wf.setframerate(16000)
             wf.writeframes(b"".join(pcm_data))
+
+        logger.bind(tag=TAG).info(
+            f"人声保存成功: {file_name}"
+        )
 
         return file_path
 
