@@ -169,6 +169,7 @@ class WebSocketServer:
                 # 1.更新配置 部分
                 # 1.1 确定模型
                 user_name = atis_config.get("userName")
+                conn.session_id = user_name
                 if user_name is not None and "asd" in user_name.lower():
                     # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
                     select_llm_module = ASDLLM
