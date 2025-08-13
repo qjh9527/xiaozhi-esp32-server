@@ -121,6 +121,7 @@ async def send_stt_message(conn, text):
     await send_tts_message(conn, "start")
 
 async def send_stt_state_message(conn, state):
+    conn.logger.bind(tag=TAG).debug(f"send stt-state: {state}")
     await conn.websocket.send(
         json.dumps({"type": "stt", "session_id": conn.session_id, "state": state})
     )
