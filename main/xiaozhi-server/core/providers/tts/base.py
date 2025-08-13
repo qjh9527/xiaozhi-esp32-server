@@ -73,9 +73,10 @@ class TTSProviderBase(ABC):
         self.is_first_sentence = True
 
     def generate_filename(self, extension=".wav"):
+        time_str = datetime.now().strftime("%Y%m%d-%H%M%S.%f")[:-3]
         return os.path.join(
             self.output_file,
-            f"tts-{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
+            f"tts_{self.conn.session_id}_{time_str}{extension}",
         )
 
     def to_tts(self, text):

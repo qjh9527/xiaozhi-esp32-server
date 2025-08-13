@@ -183,6 +183,12 @@ class ASRProvider(ASRProviderBase):
                         self.text = result["payload_msg"]["result"]["text"]
                         logger.bind(tag=TAG).info(f"识别到文本: {self.text}")
                         conn.reset_vad_states()
+                        if not self.delete_audio_file:
+                            if conn.audio_format == "pcm":
+                                pcm_data = audio_data
+                            else:
+                                pcm_data = self.decode_opus(audio_data)
+                            self.save_audio_to_file(pcm_data, conn.session_id)
                         await self.handle_voice_stop(conn, audio_data)
                         self.last = False
                         break

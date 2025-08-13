@@ -5,6 +5,8 @@ import queue
 import asyncio
 import traceback
 import threading
+from datetime import datetime
+
 import opuslib_next
 import json
 import io
@@ -238,7 +240,8 @@ class ASRProviderBase(ABC):
     def save_audio_to_file(self, pcm_data: List[bytes], session_id: str) -> str:
         """PCM数据保存为WAV文件"""
         module_name = __name__.split(".")[-1]
-        file_name = f"asr_{module_name}_{session_id}_{uuid.uuid4()}.wav"
+        time_str = datetime.now().strftime("%Y%m%d-%H%M%S.%f")[:-3]
+        file_name = f"asr_{session_id}_{time_str}.wav"
         file_path = os.path.join(self.output_dir, file_name)
 
         with wave.open(file_path, "wb") as wf:

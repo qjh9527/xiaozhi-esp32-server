@@ -29,12 +29,6 @@ class TTSProvider(TTSProviderBase):
 
         check_model_key("TTS", self.subscription)
 
-    def generate_filename(self, extension=".wav"):
-        return os.path.join(
-            self.output_file,
-            f"tts-{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
-        )
-
     async def text_to_speak(self, text, output_file):
         try:
             speech_config = speechsdk.SpeechConfig(subscription=self.subscription,
