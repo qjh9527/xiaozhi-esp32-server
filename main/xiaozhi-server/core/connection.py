@@ -161,6 +161,12 @@ class ConnectionHandler:
         # 初始化提示词管理器
         self.prompt_manager = PromptManager(config, self.logger)
 
+        self.atis_config = self.config.get("atis")
+        # 无有效语音决策时间戳
+        self.no_valid_voice_decision_ts = time.time()
+        # 第一次检测到语音
+        self.first_voice_detected = False
+
     async def handle_connection(self, ws):
         try:
             # 获取并验证headers
@@ -386,6 +392,9 @@ class ConnectionHandler:
 
     def _init_prompt_enhancement(self):
         # 更新上下文信息
+        if self.atis_config is not None:
+            # 此处是属于小智的提示词增强功能
+            return
         self.prompt_manager.update_context_info(self, self.client_ip)
         enhanced_prompt = self.prompt_manager.build_enhanced_prompt(
             self.config["prompt"], self.device_id, self.client_ip
@@ -664,11 +673,11 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def chat(self, query, tool_call=False, depth=0):
+    def chat(self, query=None, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
 
-        if not tool_call:
+        if not tool_call and query is not None:
             self.dialogue.put(Message(role="user", content=query))
 
         # 为最顶层时新建会话ID和发送FIRST请求
@@ -691,7 +700,7 @@ class ConnectionHandler:
         try:
             # 使用带记忆的对话
             memory_str = None
-            if self.memory is not None:
+            if self.memory is not None and query is not None:
                 future = asyncio.run_coroutine_threadsafe(
                     self.memory.query_memory(query), self.loop
                 )
@@ -833,12 +842,14 @@ class ConnectionHandler:
             )
         self.llm_finish_task = True
         # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
-        self.logger.bind(tag=TAG).debug(
-            lambda: json.dumps(
-                self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False
-            )
-        )
-
+        log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue()[-2:], indent=4, ensure_ascii=False)
+        self.logger.bind(tag=TAG).debug(log_message())
+        if self.close_after_chat:
+            file_dir = r"./tmp/dialogue"
+            os.makedirs(file_dir, exist_ok=True)
+            save_path = os.path.join(file_dir, f"{self.session_id}.json")
+            with open(save_path, "w", encoding="utf-8") as f:
+                json.dump(self.dialogue.get_llm_dialogue(), f, indent=4, ensure_ascii=False)
         return True
 
     def _handle_function_result(self, result, function_call_data, depth):
@@ -1013,7 +1024,9 @@ class ConnectionHandler:
         """清空所有任务队列"""
         if self.tts:
             self.logger.bind(tag=TAG).debug(
-                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, 音频队列大小={self.tts.tts_audio_queue.qsize()}"
+                f"开始清理: TTS队列大小={self.tts.tts_text_queue.qsize()}, "
+                f"音频队列大小={self.tts.tts_audio_queue.qsize()}, "
+                f"session_id {self.session_id}"
             )
 
             # 使用非阻塞方式清空队列

@@ -9,6 +9,35 @@ SERVER_VERSION = "0.7.5"
 _logger_initialized = False
 
 
+def generate_log_filename(prefix_dir: str = ".") -> str:
+    """
+    生成形如 2025_0813.0.log 的日志文件名。
+    前缀为当天日期，后缀数字为当天已存在文件的最大序号 +1。
+
+    :param prefix_dir: 日志文件所在目录，默认当前目录
+    :return: 完整的日志文件名（不含路径）
+    """
+    today_str = datetime.now().strftime("%Y_%m%d")
+
+    # 已存在且符合当日命名规则的文件
+    existing = [
+        f for f in os.listdir(prefix_dir)
+        if f.startswith(today_str) and f.endswith(".log")
+    ]
+
+    # 提取序号，默认为 -1 方便后续 +1
+    max_n = -1
+    for name in existing:
+        # 形如 2025_0813.7.log -> 7
+        try:
+            n = int(name[len(today_str) + 1:-4])
+            max_n = max(max_n, n)
+        except ValueError:
+            continue
+
+    next_n = max_n + 1
+    return f"{today_str}.{next_n}.log"
+
 def get_module_abbreviation(module_name, module_dict):
     """获取模块名称的缩写，如果为空则返回00
     如果名称中包含下划线，则返回下划线后面的前两个字符
@@ -74,10 +103,10 @@ def setup_logging():
 
         log_level = log_config.get("log_level", "INFO")
         log_dir = log_config.get("log_dir", "tmp")
-        log_file = log_config.get("log_file", "server.log")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = generate_log_filename(log_dir)
         data_dir = log_config.get("data_dir", "data")
 
-        os.makedirs(log_dir, exist_ok=True)
         os.makedirs(data_dir, exist_ok=True)
 
         # 配置日志输出

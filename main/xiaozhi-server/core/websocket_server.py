@@ -1,10 +1,16 @@
 import asyncio
+import copy
+
 import websockets
-from config.logger import setup_logging
+import random
+
+from config.logger import setup_logging, build_module_string, create_connection_logger
 from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
+from core.providers.tts.dto.dto import VoiceGender
 from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
+from core.utils import llm as llm_create
 
 TAG = __name__
 
@@ -27,6 +33,7 @@ class WebSocketServer:
         self._vad = modules["vad"] if "vad" in modules else None
         self._asr = modules["asr"] if "asr" in modules else None
         self._llm = modules["llm"] if "llm" in modules else None
+        self._tts = modules["tts"] if "tts" in modules else None
         self._intent = modules["intent"] if "intent" in modules else None
         self._memory = modules["memory"] if "memory" in modules else None
 
@@ -132,6 +139,75 @@ class WebSocketServer:
                 if "memory" in modules:
                     self._memory = modules["memory"]
                 self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
+                return True
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"更新服务器配置失败: {str(e)}")
+            return False
+
+    async def update_config_from_client(self, conn: ConnectionHandler, atis_config: dict) -> bool:
+        """更新服务器配置并重新初始化组件
+
+        Args:
+            conn (ConnectionHandler): conn
+            atis_config (dict): 客户端发送的配置
+
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            if conn.atis_config is None: return False
+            # 测试模型时，不更新配置
+            TestLLM = "Test"
+            if self.config["selected_module"]["LLM"] == TestLLM: return True
+            async with self.config_lock:
+                # 0. 重新获取配置
+                asd_probability = conn.atis_config.get("asd_probability", 0.1)
+                voice_config = atis_config.get("voice_config")
+                theme = atis_config.get("theme")
+                user_name = atis_config.get("userName")
+                conn.session_id = atis_config.get("sessionId")
+                self.logger.bind(tag=TAG).info(f"获取新配置成功")
+                ASDLLM = "ASDLLM"
+
+                # 1.更新配置 部分
+                # 1.1 确定模型
+                if user_name is not None and "asd" in user_name.lower():
+                    # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
+                    select_llm_module = ASDLLM
+                else:
+                    if ASDLLM in self.config["LLM"] and random.randint(1, 10) <= (asd_probability * 10):
+                        select_llm_module = ASDLLM
+                        print(f"用户 {user_name} 触发了ASD模型")
+                    else:
+                        select_llm_module = self.config["selected_module"]["LLM"]
+                        print(f"用户 {user_name} 未触发ASD模型")
+
+                conn.select_llm_module = select_llm_module
+
+                # 1.2 更新提示词 和 llm 模型
+                if theme is not None:
+                    gender = voice_config.get("gender", VoiceGender.girl.value).lower()
+                    claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"
+                    prompt = conn.atis_config.get("asd_prompt") if select_llm_module == ASDLLM else conn.atis_config.get("prompt")
+                    conn.change_system_prompt(prompt.format(claiming, theme))
+
+                    # 重新初始化组件
+                    if select_llm_module != self.config["selected_module"]["LLM"]:
+                        llm_type = self.config["LLM"][select_llm_module]["type"]
+                        conn.llm = llm_create.create_instance(
+                            llm_type,
+                            self.config["LLM"][select_llm_module],
+                        )
+                        self.logger.bind(tag=TAG).info(f"初始化组件: llm成功 {select_llm_module}")
+
+                conn.tts.update_config(voice_config)
+
+                self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
+
+                selected_module = copy.deepcopy(self.config.get("selected_module", {}))
+                selected_module["LLM"] = select_llm_module
+                selected_module_str = build_module_string(selected_module)
+                self.logger = create_connection_logger(selected_module_str)
                 return True
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"更新服务器配置失败: {str(e)}")

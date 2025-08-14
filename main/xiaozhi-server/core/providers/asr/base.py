@@ -5,6 +5,8 @@ import queue
 import asyncio
 import traceback
 import threading
+from datetime import datetime
+
 import opuslib_next
 import json
 import io
@@ -15,6 +17,8 @@ from config.logger import setup_logging
 from typing import Optional, Tuple, List, Dict, Any
 from core.handle.receiveAudioHandle import startToChat
 from core.handle.reportHandle import enqueue_asr_report
+from core.handle.sendAudioHandle import send_stt_state_message
+from core.handle.utilsHandle import send_error_message
 from core.utils.util import remove_punctuation_and_length
 from core.handle.receiveAudioHandle import handleAudioMessage
 
@@ -75,6 +79,10 @@ class ASRProviderBase(ABC):
     async def handle_voice_stop(self, conn, asr_audio_task: List[bytes]):
         """并行处理ASR和声纹识别"""
         try:
+            # 开始asr 通知客户端，明确用户说完话了 停止了STT
+            conn.first_voice_detected = False
+            await send_stt_state_message(conn, "stop")
+
             total_start_time = time.monotonic()
             
             # 准备音频数据
@@ -175,7 +183,15 @@ class ASRProviderBase(ABC):
                 # 使用自定义模块进行上报
                 await startToChat(conn, enhanced_text)
                 enqueue_asr_report(conn, enhanced_text, asr_audio_task)
-                
+            else:
+                if conn.atis_config is None: return
+                if raw_text is None:
+                    await send_error_message(conn, "asr", "asr_error", "")
+                else:
+                    raw_text = conn.atis_config.get("no_valid_voice")
+                    await startToChat(conn, raw_text)
+                    enqueue_asr_report(conn, raw_text, asr_audio_task)
+
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
             import traceback
@@ -224,7 +240,8 @@ class ASRProviderBase(ABC):
     def save_audio_to_file(self, pcm_data: List[bytes], session_id: str) -> str:
         """PCM数据保存为WAV文件"""
         module_name = __name__.split(".")[-1]
-        file_name = f"asr_{module_name}_{session_id}_{uuid.uuid4()}.wav"
+        time_str = datetime.now().strftime("%Y%m%d-%H%M%S.%f")[:-3]
+        file_name = f"asr_{session_id}_{time_str}.wav"
         file_path = os.path.join(self.output_dir, file_name)
 
         with wave.open(file_path, "wb") as wf:
@@ -232,6 +249,10 @@ class ASRProviderBase(ABC):
             wf.setsampwidth(2)  # 2 bytes = 16-bit
             wf.setframerate(16000)
             wf.writeframes(b"".join(pcm_data))
+
+        logger.bind(tag=TAG).info(
+            f"人声保存成功: {file_name}"
+        )
 
         return file_path
 

@@ -112,7 +112,7 @@ class ASRProvider(ASRProviderBase):
                     logger.bind(tag=TAG).error(
                         f"语音识别失败（已重试{retry_count}次）: {e}", exc_info=True
                     )
-                    return "", file_path
+                    return None, file_path
                 logger.bind(tag=TAG).warning(
                     f"语音识别失败，正在重试（{retry_count}/{MAX_RETRIES}）: {e}"
                 )
@@ -120,7 +120,7 @@ class ASRProvider(ASRProviderBase):
 
             except Exception as e:
                 logger.bind(tag=TAG).error(f"语音识别失败: {e}", exc_info=True)
-                return "", file_path
+                return None, file_path
 
             finally:
                 # 文件清理逻辑
@@ -128,7 +128,10 @@ class ASRProvider(ASRProviderBase):
                     try:
                         os.remove(file_path)
                         logger.bind(tag=TAG).debug(f"已删除临时音频文件: {file_path}")
+                        return None, file_path
                     except Exception as e:
                         logger.bind(tag=TAG).error(
                             f"文件删除失败: {file_path} | 错误: {e}"
                         )
+                        return None, file_path
+        return None, file_path

@@ -28,9 +28,6 @@ class TTSProvider(TTSProviderBase):
         elif not isinstance(self.params, dict):
             raise TypeError("Custom TTS配置参数出错, 请参考配置说明")
 
-    def generate_filename(self):
-        return os.path.join(self.output_file, f"tts-{datetime.now().date()}@{uuid.uuid4().hex}.{self.format}")
-
     async def text_to_speak(self, text, output_file):
         request_params = {}
         for k, v in self.params.items():

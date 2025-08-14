@@ -2,8 +2,11 @@ import json
 import gzip
 import uuid
 import asyncio
+from typing import List, Tuple, Optional
+
 import websockets
 import opuslib_next
+
 from core.providers.asr.base import ASRProviderBase
 from config.logger import setup_logging
 from core.providers.asr.dto.dto import InterfaceType
@@ -40,7 +43,8 @@ class ASRProvider(ASRProviderBase):
         self.workflow = config.get(
             "workflow", "audio_in,resample,partition,vad,fe,decode,itn,nlu_punctuate"
         )
-        self.result_type = config.get("result_type", "single")
+        # 默认为"full",全量返回。设置为"single"则为增量结果返回，即不返回之前分句的结果。
+        # self.result_type = config.get("result_type", "single")
         self.format = config.get("format", "pcm")
         self.codec = config.get("codec", "pcm")
         self.rate = config.get("sample_rate", 16000)
@@ -50,22 +54,21 @@ class ASRProvider(ASRProviderBase):
         self.auth_method = config.get("auth_method", "token")
         self.secret = config.get("secret", "access_secret")
 
+        self.end_window_size = 1000
+        self.force_to_speech_time = 1  # 由于
+        self.last = False
+
     async def open_audio_channels(self, conn):
         await super().open_audio_channels(conn)
 
     async def receive_audio(self, conn, audio, audio_have_voice):
         conn.asr_audio.append(audio)
         conn.asr_audio = conn.asr_audio[-10:]
-        
+
         # 存储音频数据
         if not hasattr(conn, 'asr_audio_for_voiceprint'):
             conn.asr_audio_for_voiceprint = []
         conn.asr_audio_for_voiceprint.append(audio)
-        
-        # 当没有音频数据时处理完整语音片段
-        if not audio and len(conn.asr_audio_for_voiceprint) > 0:
-            await self.handle_voice_stop(conn, conn.asr_audio_for_voiceprint)
-            conn.asr_audio_for_voiceprint = []
 
         # 如果本次有声音，且之前没有建立连接
         if audio_have_voice and self.asr_ws is None and not self.is_processing:
@@ -83,6 +86,11 @@ class ASRProvider(ASRProviderBase):
                     ping_timeout=None,
                     close_timeout=10,
                 )
+
+                if conn.client_listen_mode == "auto" or conn.client_listen_mode == "realtime":
+                    self.end_window_size = 1000  # 自动模式下，设定合适的静音间隔
+                else:
+                    self.end_window_size = 5000  # 手动模式下，允许有更长的静音间隔，但不超过五秒
 
                 # 发送初始化请求
                 request_params = self.construct_request(str(uuid.uuid4()))
@@ -148,7 +156,14 @@ class ASRProvider(ASRProviderBase):
             try:
                 pcm_frame = self.decoder.decode(audio, 960)
                 payload = gzip.compress(pcm_frame)
-                audio_request = bytearray(self.generate_audio_default_header())
+                if conn.client_voice_stop:
+                    if not self.last:
+                        self.last = True
+                        audio_request = bytearray(self.generate_last_audio_default_header())
+                    else:
+                        return
+                else:
+                    audio_request = bytearray(self.generate_audio_default_header())
                 audio_request.extend(len(payload).to_bytes(4, "big"))
                 audio_request.extend(payload)
                 await self.asr_ws.send(audio_request)
@@ -163,47 +178,23 @@ class ASRProvider(ASRProviderBase):
                 try:
                     response = await self.asr_ws.recv()
                     result = self.parse_response(response)
-                    logger.bind(tag=TAG).debug(f"收到ASR结果: {result}")
+                    # logger.bind(tag=TAG).debug(f"收到ASR结果: {result}")
+                    if result["is_last_package"]:
+                        self.text = result["payload_msg"]["result"]["text"]
+                        logger.bind(tag=TAG).info(f"识别到文本: {self.text}")
+                        conn.reset_vad_states()
+                        if not self.delete_audio_file:
+                            if conn.audio_format == "pcm":
+                                pcm_data = audio_data
+                            else:
+                                pcm_data = self.decode_opus(audio_data)
+                            self.save_audio_to_file(pcm_data, conn.session_id)
+                        await self.handle_voice_stop(conn, audio_data)
+                        self.last = False
+                        break
 
-                    if "payload_msg" in result:
-                        payload = result["payload_msg"]
-                        # 检查是否是错误码1013（无有效语音）
-                        if "code" in payload and payload["code"] == 1013:
-                            # 静默处理，不记录错误日志
-                            continue
-
-                        if "result" in payload:
-                            utterances = payload["result"].get("utterances", [])
-                            # 检查duration和空文本的情况
-                            if (
-                                payload.get("audio_info", {}).get("duration", 0) > 2000
-                                and not utterances
-                                and not payload["result"].get("text")
-                            ):
-                                logger.bind(tag=TAG).error(f"识别文本：空")
-                                self.text = ""
-                                conn.reset_vad_states()
-                                if len(audio_data) > 15:  # 确保有足够音频数据
-                                    await self.handle_voice_stop(conn, audio_data)
-                                break
-
-                            for utterance in utterances:
-                                if utterance.get("definite", False):
-                                    self.text = utterance["text"]
-                                    logger.bind(tag=TAG).info(
-                                        f"识别到文本: {self.text}"
-                                    )
-                                    conn.reset_vad_states()
-                                    if len(audio_data) > 15:  # 确保有足够音频数据
-                                        await self.handle_voice_stop(conn, audio_data)
-                                    break
-                        elif "error" in payload:
-                            error_msg = payload.get("error", "未知错误")
-                            logger.bind(tag=TAG).error(f"ASR服务返回错误: {error_msg}")
-                            break
-
-                except websockets.ConnectionClosed:
-                    logger.bind(tag=TAG).info("ASR服务连接已关闭")
+                except websockets.ConnectionClosed as e:
+                    logger.bind(tag=TAG).info(f"ASR服务连接已关闭: {str(e)}")
                     self.is_processing = False
                     break
                 except Exception as e:
@@ -227,8 +218,6 @@ class ASRProvider(ASRProviderBase):
                     conn.asr_audio_for_voiceprint = []
                 if hasattr(conn, 'asr_audio'):
                     conn.asr_audio = []
-                if hasattr(conn, 'has_valid_voice'):
-                    conn.has_valid_voice = False
 
     def stop_ws_connection(self):
         if self.asr_ws:
@@ -247,12 +236,13 @@ class ASRProvider(ASRProviderBase):
             "request": {
                 "reqid": reqid,
                 "workflow": self.workflow,
-                "show_utterances": True,
-                "result_type": self.result_type,
+                # "show_utterances": True,
+                # "result_type": self.result_type,
                 "sequence": 1,
-                "boosting_table_name": self.boosting_table_name,
-                "correct_table_name": self.correct_table_name,
-                "end_window_size": 200,
+                # "boosting_table_name": self.boosting_table_name,
+                # "correct_table_name": self.correct_table_name,
+                "end_window_size": self.end_window_size,
+                "force_to_speech_time": self.force_to_speech_time,
             },
             "audio": {
                 "format": self.format,
@@ -324,6 +314,12 @@ class ASRProvider(ASRProviderBase):
             # 获取消息头
             header = res[:4]
             message_type = header[1] >> 4
+            message_type_specific_flags = res[1] & 0x0f
+
+            is_last_package = False
+            if message_type_specific_flags & 0x02:
+                # receive last package
+                is_last_package = True
 
             # 如果是错误响应
             if message_type == 0x0F:  # SERVER_ERROR_RESPONSE
@@ -340,8 +336,8 @@ class ASRProvider(ASRProviderBase):
             try:
                 json_data = res[12:].decode("utf-8")
                 result = json.loads(json_data)
-                logger.bind(tag=TAG).debug(f"成功解析JSON响应: {result}")
-                return {"payload_msg": result}
+                # logger.bind(tag=TAG).debug(f"成功解析JSON响应: {result}")
+                return {"payload_msg": result, "is_last_package": is_last_package}
             except (UnicodeDecodeError, json.JSONDecodeError) as e:
                 logger.bind(tag=TAG).error(f"JSON解析失败: {str(e)}")
                 logger.bind(tag=TAG).error(f"原始数据: {res}")
@@ -352,7 +348,7 @@ class ASRProvider(ASRProviderBase):
             logger.bind(tag=TAG).error(f"原始响应数据: {res.hex()}")
             raise
 
-    async def speech_to_text(self, opus_data, session_id, audio_format):
+    async def speech_to_text(self, opus_data: List[bytes], session_id: str, audio_format="opus") -> Tuple[Optional[str], Optional[str]]:
         result = self.text
         self.text = ""  # 清空text
         return result, None
@@ -370,12 +366,3 @@ class ASRProvider(ASRProviderBase):
                 pass
             self.forward_task = None
         self.is_processing = False
-        # 清理所有连接的音频缓冲区
-        if hasattr(self, '_connections'):
-            for conn in self._connections.values():
-                if hasattr(conn, 'asr_audio_for_voiceprint'):
-                    conn.asr_audio_for_voiceprint = []
-                if hasattr(conn, 'asr_audio'):
-                    conn.asr_audio = []
-                if hasattr(conn, 'has_valid_voice'):
-                    conn.has_valid_voice = False

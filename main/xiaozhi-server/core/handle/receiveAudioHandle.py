@@ -1,4 +1,4 @@
-from core.handle.sendAudioHandle import send_stt_message
+from core.handle.sendAudioHandle import send_stt_message, send_stt_state_message
 from core.handle.intentHandler import handle_user_intent
 from core.utils.output_counter import check_device_output_limit
 from core.handle.abortHandle import handleAbortMessage
@@ -13,7 +13,21 @@ TAG = __name__
 
 async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
-    have_voice = conn.vad.is_vad(conn, audio)
+    if conn.atis_config is not None:
+        if conn.client_listen_mode == "manual":
+            conn.client_have_voice = True
+            conn.last_activity_time = time.time() * 1000
+            have_voice = True
+        else:
+            have_voice = conn.vad.is_vad(conn, audio)
+    else:
+        have_voice = conn.vad.is_vad(conn, audio)
+
+    if have_voice and not conn.first_voice_detected:
+        # 告诉客户端，服务端识别到了声音 开始了 STT
+        conn.first_voice_detected = True
+        await send_stt_state_message(conn, "start")
+
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
     if have_voice and hasattr(conn, "just_woken_up") and conn.just_woken_up:
         have_voice = False
@@ -28,6 +42,8 @@ async def handleAudioMessage(conn, audio):
             await handleAbortMessage(conn)
     # 设备长时间空闲检测，用于say goodbye
     await no_voice_close_connect(conn, have_voice)
+    # 用户短时间未说话
+    await no_voice_send_msg(conn, have_voice)
     # 接收音频
     await conn.asr.receive_audio(conn, audio, have_voice)
 
@@ -116,6 +132,31 @@ async def no_voice_close_connect(conn, have_voice):
                 prompt = "请你以```时间过得真快```未来头，用富有感情、依依不舍的话来结束这场对话吧。！"
             await startToChat(conn, prompt)
 
+async def no_voice_send_msg(conn, have_voice):
+    if conn.atis_config is None: return
+
+    if conn.client_listen_mode == "manual":
+        return
+
+    if have_voice:
+        conn.listen_start_time = 0.0
+        return
+
+    if conn.listen_start_time == 0.0:
+        return
+    else:
+        no_voice_time = time.time() - conn.listen_start_time
+        last_decision_time = time.time() - conn.no_valid_voice_decision_ts
+        if last_decision_time < conn.atis_config.get("no_voice_time", 10):    # 过滤无有效语音决策时间后，此时间间隔内音频
+            # conn.logger.bind(tag=TAG).warning("重复无效语音决策！")
+            return
+        if (
+            not conn.close_after_chat
+            and no_voice_time > conn.atis_config.get("no_voice_time", 10)
+        ):
+            conn.logger.bind(tag=TAG).warning("用户短时间未说话！")
+            conn.no_valid_voice_decision_ts = time.time()
+            await startToChat(conn, conn.atis_config.get("no_valid_voice"))
 
 async def max_out_size(conn):
     text = "不好意思，我现在有点事情要忙，明天这个时候我们再聊，约好了哦！明天不见不散，拜拜！"
