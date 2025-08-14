@@ -163,13 +163,14 @@ class WebSocketServer:
                 # 0. 重新获取配置
                 asd_probability = conn.atis_config.get("asd_probability", 0.1)
                 voice_config = atis_config.get("voice_config")
+                theme = atis_config.get("theme")
+                user_name = atis_config.get("userName")
+                conn.session_id = atis_config.get("sessionId")
                 self.logger.bind(tag=TAG).info(f"获取新配置成功")
                 ASDLLM = "ASDLLM"
 
                 # 1.更新配置 部分
                 # 1.1 确定模型
-                user_name = atis_config.get("userName")
-                conn.session_id = user_name
                 if user_name is not None and "asd" in user_name.lower():
                     # 针对专用于测试 ASD模型 的账号，强制使用ASD模型
                     select_llm_module = ASDLLM
@@ -184,7 +185,6 @@ class WebSocketServer:
                 conn.select_llm_module = select_llm_module
 
                 # 1.2 更新提示词 和 llm 模型
-                theme = atis_config.get("theme")
                 if theme is not None:
                     gender = voice_config.get("gender", VoiceGender.girl.value).lower()
                     claiming = "姐姐" if gender == VoiceGender.girl.value else "哥哥"

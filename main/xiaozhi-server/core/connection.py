@@ -844,7 +844,11 @@ class ConnectionHandler:
         # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
         log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue()[-2:], indent=4, ensure_ascii=False)
         self.logger.bind(tag=TAG).debug(log_message())
-
+        if self.close_after_chat:
+            with open(f"{self.session_id}.json", "w") as f:
+                json.dump(self.dialogue.get_llm_dialogue_with_memory(
+                    memory_str, self.config.get("voiceprint", {})
+                ), f, indent=4, ensure_ascii=False)
         return True
 
     def _handle_function_result(self, result, function_call_data, depth):
