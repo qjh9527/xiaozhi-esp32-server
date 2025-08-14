@@ -34,12 +34,6 @@ class TTSProvider(TTSProviderBase):
         self.emotion = int(config.get("emotion", 1))
         self.header = {"Content-Type": "application/json"}
 
-    def generate_filename(self, extension=".mp3"):
-        return os.path.join(
-            self.output_file,
-            f"tts-{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
-        )
-
     async def text_to_speak(self, text, output_file):
         url = f"{self.url}{self.token}"
         result = "firefly"

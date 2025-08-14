@@ -54,12 +54,6 @@ class TTSProvider(TTSProviderBase):
         }
         self.audio_file_type = defult_audio_setting.get("format", "mp3")
 
-    def generate_filename(self, extension=".mp3"):
-        return os.path.join(
-            self.output_file,
-            f"tts-{__name__}{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
-        )
-
     async def text_to_speak(self, text, output_file):
         request_json = {
             "model": self.model,

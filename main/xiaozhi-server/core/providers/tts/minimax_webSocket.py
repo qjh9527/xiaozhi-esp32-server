@@ -61,13 +61,6 @@ class TTSProvider(TTSProviderBase):
         }
         self.audio_file_type = self.audio_setting.get("format", "mp3")
 
-    def generate_filename(self, extension=".mp3"):
-        """生成唯一的音频文件名"""
-        return os.path.join(
-            self.output_file,
-            f"tts-{__name__}{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
-        )
-
     async def _establish_connection(self):
         """建立WebSocket连接"""
         ssl_context = ssl.create_default_context()

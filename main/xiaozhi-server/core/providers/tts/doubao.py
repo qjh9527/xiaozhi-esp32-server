@@ -2,6 +2,8 @@ import uuid
 import json
 import base64
 import requests
+
+from core.providers.tts.dto.dto import VoiceGender
 from core.utils.util import check_model_key
 from core.providers.tts.base import TTSProviderBase
 from config.logger import setup_logging
@@ -24,6 +26,8 @@ class TTSProvider(TTSProviderBase):
             self.voice = config.get("private_voice")
         else:
             self.voice = config.get("voice")
+            self.voice_girl = config.get("voice_girl", self.voice)
+            self.voice_boy = config.get("voice_boy", self.voice)
 
         # 处理空字符串的情况
         speed_ratio = config.get("speed_ratio", "1.0")
@@ -40,6 +44,15 @@ class TTSProvider(TTSProviderBase):
         model_key_msg = check_model_key("TTS", self.access_token)
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
+
+    def update_config(self, voice_config: dict):
+        # 更新语速
+        rate = voice_config.get("rate", "1.0")
+        self.speed_ratio = float(rate) if rate else 1.0
+
+        # 更新声音性别
+        gender = voice_config.get("gender", VoiceGender.girl.value).lower()
+        self.voice = self.voice_girl if gender == VoiceGender.girl.value else self.voice_boy
 
     async def text_to_speak(self, text, output_file):
         request_json = {
@@ -80,7 +93,7 @@ class TTSProvider(TTSProviderBase):
                     return audio_bytes
             else:
                 raise Exception(
-                    f"{__name__} status_code: {resp.status_code} response: {resp.content}"
+                    f"{__name__} status_code: {resp.status_code} response: {resp.content} text: {text}"
                 )
         except Exception as e:
             raise Exception(f"{__name__} error: {e}")
