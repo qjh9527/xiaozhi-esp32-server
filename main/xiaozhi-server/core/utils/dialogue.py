@@ -47,11 +47,7 @@ class Dialogue:
     def get_llm_dialogue(self) -> List[Dict[str, str]]:
         # 直接调用get_llm_dialogue_with_memory，传入None作为memory_str
         # 这样确保说话人功能在所有调用路径下都生效
-        # return self.get_llm_dialogue_with_memory(None, None)
-        dialogue = []
-        for m in self.dialogue:
-            self.getMessages(m, dialogue)
-        return dialogue
+        return self.get_llm_dialogue_with_memory(None, None)
 
     def update_system_message(self, new_content: str):
         """更新或添加系统消息"""
@@ -67,59 +63,52 @@ class Dialogue:
         self.put(Message(role="system", content=new_content))
 
     def get_llm_dialogue_with_memory(
-        self, memory_str: str = None, voiceprint_config: dict = None
+            self, memory_str: str = None, voiceprint_config: dict = None
     ) -> List[Dict[str, str]]:
-        # 构建对话
-        dialogue = []
+        dialogue: List[Dict[str, str]] = []
+        first_system_processed = False  # 标记是否已处理过第一条 system
 
-        # 添加系统提示和记忆
-        system_message = next(
-            (msg for msg in self.dialogue if msg.role == "system"), None
-        )
+        for msg in self.dialogue:
+            if msg.role == "system":
+                content = msg.content
+                if not first_system_processed:  # 仅增强第一条
+                    first_system_processed = True
+                    # 时间占位符
+                    content = content.replace(
+                        "{{current_time}}", datetime.now().strftime("%H:%M")
+                    )
 
-        if system_message:
-            # 基础系统提示
-            enhanced_system_prompt = system_message.content
-            # 替换时间占位符
-            enhanced_system_prompt = enhanced_system_prompt.replace(
-                "{{current_time}}", datetime.now().strftime("%H:%M")
-            )
+                    # 说话人信息
+                    try:
+                        speakers = (voiceprint_config or {}).get("speakers", [])
+                        if speakers:
+                            speaker_lines = ["<speakers_info>"]
+                            for s in speakers:
+                                try:
+                                    parts = s.split(",", 2)
+                                    if len(parts) >= 2:
+                                        name = parts[1].strip()
+                                        desc = parts[2].strip() if len(parts) >= 3 else ""
+                                        speaker_lines.append(f"- {name}：{desc}")
+                                except Exception:
+                                    continue
+                            speaker_lines.append("</speakers_info>")
+                            content += "\n\n" + "\n".join(speaker_lines)
+                    except Exception:
+                        pass
 
-            # 添加说话人个性化描述
-            try:
-                speakers = voiceprint_config.get("speakers", [])
-                if speakers:
-                    enhanced_system_prompt += "\n\n<speakers_info>"
-                    for speaker_str in speakers:
-                        try:
-                            parts = speaker_str.split(",", 2)
-                            if len(parts) >= 2:
-                                name = parts[1].strip()
-                                # 如果描述为空，则为""
-                                description = (
-                                    parts[2].strip() if len(parts) >= 3 else ""
-                                )
-                                enhanced_system_prompt += f"\n- {name}：{description}"
-                        except:
-                            pass
-                    enhanced_system_prompt += "\n\n</speakers_info>"
-            except:
-                # 配置读取失败时忽略错误，不影响其他功能
-                pass
+                    # memory 替换
+                    if memory_str is not None:
+                        content = re.sub(
+                            r"<memory>.*?</memory>",
+                            f"<memory>\n{memory_str}\n</memory>",
+                            content,
+                            flags=re.DOTALL,
+                        )
 
-            # 使用正则表达式匹配 <memory> 标签，不管中间有什么内容
-            if memory_str is not None:
-                enhanced_system_prompt = re.sub(
-                    r"<memory>.*?</memory>",
-                    f"<memory>\n{memory_str}\n</memory>",
-                    enhanced_system_prompt,
-                    flags=re.DOTALL,
-                )
-            dialogue.append({"role": "system", "content": enhanced_system_prompt})
-
-        # 添加用户和助手的对话
-        for m in self.dialogue:
-            if m.role != "system":  # 跳过原始的系统消息
-                self.getMessages(m, dialogue)
+                dialogue.append({"role": "system", "content": content})
+            else:
+                # 非 system 消息，原样追加
+                self.getMessages(msg, dialogue)
 
         return dialogue

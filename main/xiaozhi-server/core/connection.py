@@ -845,10 +845,11 @@ class ConnectionHandler:
         log_message = lambda: json.dumps(self.dialogue.get_llm_dialogue()[-2:], indent=4, ensure_ascii=False)
         self.logger.bind(tag=TAG).debug(log_message())
         if self.close_after_chat:
-            with open(f"{self.session_id}.json", "w") as f:
-                json.dump(self.dialogue.get_llm_dialogue_with_memory(
-                    memory_str, self.config.get("voiceprint", {})
-                ), f, indent=4, ensure_ascii=False)
+            file_dir = r"./tmp/dialogue"
+            os.makedirs(file_dir, exist_ok=True)
+            save_path = os.path.join(file_dir, f"{self.session_id}.json")
+            with open(save_path, "w", encoding="utf-8") as f:
+                json.dump(self.dialogue.get_llm_dialogue(), f, indent=4, ensure_ascii=False)
         return True
 
     def _handle_function_result(self, result, function_call_data, depth):
